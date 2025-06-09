@@ -4,7 +4,7 @@ Module for implementing polynomials
 
 from __future__ import annotations
 
-from collections import Iterable
+from collections.abc import Iterable
 
 from cmath import sqrt
 
@@ -122,7 +122,16 @@ def quartic_solver(a: float, b: float, c: float, d: float, e: float) -> complex:
     if a:
         b, c, d, e = b / a, c / a, d / a, e / a
         p, q, r = c - 3 * b ** 2 / 8, b ** 3 / 8 - b * c / 2 + d, e - b * d / 4 + b ** 2 * c / 16 - 3 * b ** 4 / 256
-        z0 = cubic_solver(1, -p, r * r, 4 * p * r - q ** 2)
+
+        if 4 * p * r != q ** 2:
+            z0 = cubic_solver(1, -p, 4 * r, 4 * p * r - q ** 2)
+        elif r:
+            z0 = quadratic_solver(1, -p, 4 * r)
+        elif p:
+            z0 = p
+        else:
+            return -b / 4
+
         R = sqrt(z0)
         D, E = sqrt(2 * q / R - 2 * p - z0), sqrt(- 2 * q / R - 2 * p - z0)
 
@@ -130,12 +139,12 @@ def quartic_solver(a: float, b: float, c: float, d: float, e: float) -> complex:
 
     return cubic_solver(b, c, d, e)
 
-class Polynome:
+class Polynomial:
     def __init__(self, vals: Iterable[float]):
         """
         Args:
             vals: A list of coefficients
-        Creates a polynome of degree len(self) - 1 (for vals == [] the polynomial
+        Creates a polynomial of degree len(self) - 1 (for vals == [] the polynomial
         is constant 0), where self[i - 1] is the coefficient of x^(n - i)
         """
 
@@ -174,8 +183,17 @@ class Polynome:
 
         return (n - len(l)) * [0] + l
 
+    @staticmethod
+    def polynomial_from_roots(roots: dict[float, int]) -> Polynomial:
+        res = Polynomial([1])
+
+        for k, v in roots.items():
+            res *= Polynomial([1, -k]) ** v
+
+        return res
+
     @property
-    def value(self):
+    def value(self) -> list[float]:
         """
         Returns:
            The list of coefficients
@@ -183,13 +201,25 @@ class Polynome:
 
         return self.__value
 
-    def copy(self) -> Polynome:
+    @property
+    def degree(self) -> int:
+        """
+        Returns:
+            The degree of the polynomial
+        """
+
+        if not self:
+            return -inf
+
+        return len(self) - 1
+
+    def copy(self) -> Polynomial:
         """
         Returns:
             Identical copy of the polynomial
         """
 
-        return Polynome(self.value)
+        return Polynomial(self.value)
 
     def evaluate(self, x: complex) -> complex:
         """
@@ -206,22 +236,22 @@ class Polynome:
 
         return s
 
-    def compose(self, other: Polynome) -> Polynome:
+    def compose(self, other: Polynomial) -> Polynomial:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
             self(other)
         """
 
-        res, n = Polynome([]), self.degree()
+        res, n = Polynomial([]), self.degree
 
         for i, a in enumerate(self):
             res += a * other ** (n - i)
 
         return res
 
-    def differentiate(self) -> Polynome:
+    def differentiate(self) -> Polynomial:
         """
         Returns:
             self'(x)
@@ -232,9 +262,9 @@ class Polynome:
         for i, a in enumerate(self.value[:-1]):
             res.append(a * (n - i - 1))
 
-        return Polynome(res)
+        return Polynomial(res)
 
-    def integrate(self, c: float = 0) -> Polynome:
+    def integrate(self, c: float = 0) -> Polynomial:
         """
         Args:
             c: Integration constant
@@ -247,7 +277,7 @@ class Polynome:
         for i, a in enumerate(self.value):
             res.append(a / (n - i))
 
-        return Polynome(res + [c])
+        return Polynomial(res + [c])
 
     def definitive_integral(self, a: float, b: float) -> float:
         """
@@ -270,7 +300,10 @@ class Polynome:
             lim(+-inf, self)
         """
 
-        return (-1) ** (1 - (self[0] > 0) + (bool(negative) and (self.degree() % 2))) * float("inf")
+        if len(self) < 2:
+            return self(0).real
+
+        return (-1) ** (1 - (self[0] > 0) + (bool(negative) and (self.degree % 2))) * float("inf")
 
     def show(self, var: str = "x") -> str:
         """
@@ -316,31 +349,19 @@ class Polynome:
             A dictionary of the roots of the polynomial and how many times each number is a root
         """
 
+        if (n := self.degree) < 1:
+            return {}
+
         if not self[-1]:
-            res = Polynome(self[:-1]).solve()
+            res = Polynomial(self[:-1]).solve()
 
             if 0 in res:
                 res[0] += 1
 
             return res
 
-        if (n := self.degree()) < 1:
-            return {}
-
         if n in {1, 2}:
             return quadratic_solver(*self)
-
-        if n in {3, 4}:
-            res = (cubic_solver if n == 3 else quartic_solver)(*self)
-            tmp = self // Polynome([1, -res])
-            roots = tmp.solve()
-
-            if res not in roots:
-                roots[res] = 0
-
-            roots[res] += 1
-
-            return roots
 
         if not any(self[1:-1]):
             c, phi, res = self[-1], pi, {}
@@ -360,18 +381,27 @@ class Polynome:
 
             return res
 
+        if n in {3, 4}:
+            res = (cubic_solver if n == 3 else quartic_solver)(*self)
+            tmp = self // Polynomial([1, -res])
+            roots = tmp.solve()
+
+            if res not in roots:
+                roots[res] = 0
+
+            roots[res] += 1
+
+            return roots
+
         return ...
 
-    def degree(self) -> int:
+    def factorize(self) -> dict[Polynomial, int]:
         """
         Returns:
-            The degree of the polynomial
+            A dictionary of polynomials p: n where the product of p^n for all p = self and p are simple polynomials
         """
 
-        if not self:
-            return -inf
-
-        return len(self) - 1
+        pass
 
     def __call__(self, x: complex) -> complex:
         """
@@ -383,38 +413,38 @@ class Polynome:
 
         return self.evaluate(x)
 
-    def __add__(self, other: Polynome | Iterable[float] | float) -> Polynome:
+    def __add__(self, other: Polynomial | Iterable[float] | float) -> Polynomial:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
             self + other
         """
 
-        if isinstance(other, Polynome):
+        if isinstance(other, Polynomial):
             shorter, longer = min(self.value, other.value, key=len), max(other.value, self.value, key=len)
 
-            return Polynome(list(map(lambda t: t[0] + t[1], zip(self.extend_0s(shorter, len(longer)), longer))))
+            return Polynomial(list(map(lambda t: t[0] + t[1], zip(self.extend_0s(shorter, len(longer)), longer))))
 
-        return self + Polynome(other)
+        return self + Polynomial(other)
 
-    def __sub__(self, other: Polynome | Iterable[float] | float) -> Polynome:
+    def __sub__(self, other: Polynomial | Iterable[float] | float) -> Polynomial:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
             self - other
         """
 
-        if isinstance(other, Polynome):
+        if isinstance(other, Polynomial):
             return self + -other
 
-        return self - Polynome(other)
+        return self - Polynomial(other)
 
-    def __mul__(self, other: Polynome | Iterable[float] | float) -> Polynome:
+    def __mul__(self, other: Polynomial | Iterable[float] | float) -> Polynomial:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
             self * other
         """
@@ -422,42 +452,42 @@ class Polynome:
         def helper(k):
             return sum(self[i] * other[k - i] for i in range(max(0, k - q + 1), min(p, k + 1)))
 
-        if isinstance(other, Polynome):
+        if isinstance(other, Polynomial):
             p, q = len(self), len(other)
 
-            return Polynome(list(map(helper, list(range(p + q - 1)))))
+            return Polynomial(list(map(helper, list(range(p + q - 1)))))
 
-        return self * Polynome(other)
+        return self * Polynomial(other)
 
-    def __floordiv__(self, other: Polynome | Iterable[float] | float) -> Polynome:
+    def __floordiv__(self, other: Polynomial | Iterable[float] | float) -> Polynomial:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
             The maximal polynomial p: p * other <= self
         """
 
         return (self / other)[0]
 
-    def __truediv__(self, other: Polynome | Iterable[float] | float) -> tuple[Polynome, Polynome]:
+    def __truediv__(self, other: Polynomial | Iterable[float] | float) -> tuple[Polynomial, Polynomial]:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
             A tuple with the maximal polynomial p: p * other <= self and the remainder self - p
         """
 
         if not other:
-            raise ZeroDivisionError("Zero polynome")
+            raise ZeroDivisionError("Zero polynomial")
 
         if isinstance(other, (int, float)):
-            return Polynome(list(map(lambda a: a[0] / other, self))), Polynome([0])
+            return Polynomial(list(map(lambda a: a[0] / other, self))), Polynomial([0])
 
-        if not isinstance(other, Polynome):
-            other = Polynome(other)
+        if not isinstance(other, Polynomial):
+            other = Polynomial(other)
 
         if self < other:
-            return Polynome([]), self
+            return Polynomial([]), self
 
         p, q = len(self), len(other)
         res = [0] * (p - q + 1)
@@ -465,12 +495,12 @@ class Polynome:
 
         for i in range(len(res)):
             ratio = current[0] / other[0]
-            current -= Polynome([ratio] + [0] * (p - q - i)) * other
+            current -= Polynomial([ratio] + [0] * (p - q - i)) * other
             res[i] = ratio
 
-        return Polynome(res), current
+        return Polynomial(res), current
 
-    def __pow__(self, power: int) -> Polynome:
+    def __pow__(self, power: int) -> Polynomial:
         """
         Args:
             power: An integer
@@ -479,27 +509,27 @@ class Polynome:
         """
 
         if power < 0:
-            return Polynome([])
+            return Polynomial([])
 
-        res = Polynome([1])
+        res = Polynomial([1])
 
         for _ in range(power):
             res *= self
 
         return res
 
-    def __neg__(self) -> Polynome:
+    def __neg__(self) -> Polynomial:
         """
         Returns:
-           The polynome negated 
+           The polynomial negated
         """
 
-        return Polynome([-x for x in self.value])
+        return Polynomial([-x for x in self.value])
 
     def __bool__(self) -> bool:
         """
         Returns:
-           self.show() != 0 
+           self.show() != 0
         """
 
         return bool(self.value)
@@ -507,7 +537,7 @@ class Polynome:
     def __len__(self) -> int:
         """
         Returns:
-           Number of coefficients 
+           Number of coefficients
         """
 
         return len(self.value)
@@ -535,20 +565,20 @@ class Polynome:
     def __eq__(self, other) -> bool:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
-            If other is the same polynome as self
+            If other is the same polynomial as self
         """
 
-        if type(other) == Polynome:
+        if type(other) == Polynomial:
             return self.value == other.value
 
         return False
 
-    def __lt__(self, other: Polynome) -> bool:
+    def __lt__(self, other: Polynomial) -> bool:
         """
         Args:
-            other: Another polynome
+            other: Another polynomial
         Returns:
             If lim(inf, self) < lim(inf, other)
         """
