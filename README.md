@@ -19,4 +19,4 @@ The implementation of the polynomial is straightforward - from a list of coeffic
 ## Not supported
 
 - Polynomials of more than 1 variables.
-- Graphs with loops (a link, both ends of which are the same node).
+- Factorization to simple polynomials.
