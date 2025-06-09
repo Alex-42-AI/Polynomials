@@ -19,4 +19,3 @@ The implementation of the polynomial is straightforward - from a list of coeffic
 ## Not supported
 
 - Polynomials of more than 1 variables.
-- Factorization to simple polynomials.
