@@ -303,7 +303,7 @@ class Polynomial:
         if len(self) < 2:
             return self(0).real
 
-        return (-1) ** (1 - (self[0] > 0) + (bool(negative) and (self.degree % 2))) * float("inf")
+        return (-1) ** (1 - (self[0] > 0) + (bool(negative) and (self.degree % 2))) * inf
 
     def show(self, var: str = "x") -> str:
         """
@@ -401,7 +401,22 @@ class Polynomial:
             A dictionary of polynomials p: n where the product of p^n for all p = self and p are simple polynomials
         """
 
-        pass
+        roots = self.solve()
+        res, remaining = {}, self.copy()
+
+        for k, v in roots.items():
+            if not k.imag:
+                res[curr := Polynomial([1, -k])] = v
+                remaining //= curr
+
+        if remaining:
+            # TODO: use complex roots
+            pass
+
+        return res
+
+    def __hash__(self) -> int:
+        return hash(tuple(self))
 
     def __call__(self, x: complex) -> complex:
         """
