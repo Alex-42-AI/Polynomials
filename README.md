@@ -6,7 +6,6 @@ A file for implementing polynomial functions.
 
 ## Implementation
 
-### Polynome
 The implementation of the polynomial is straightforward - from a list of coefficients
 
 ## Functionalities
