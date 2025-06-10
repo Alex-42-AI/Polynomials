@@ -481,6 +481,9 @@ class Polynomial:
 
         return self * Polynomial(other)
 
+    def __rmul__(self, other: Iterable[float] | float) -> Polynomial:
+        return self * other
+
     def __floordiv__(self, other: Polynomial | Iterable[float] | float) -> Polynomial:
         """
         Args:
@@ -490,6 +493,9 @@ class Polynomial:
         """
 
         return (self / other)[0]
+
+    def __rfloordiv__(self, other: Iterable[float] | float) -> Polynomial:
+        return Polynomial(other) // self
 
     def __truediv__(self, other: Polynomial | Iterable[float] | float) -> tuple[Polynomial, Polynomial]:
         """
@@ -521,6 +527,9 @@ class Polynomial:
             res[i] = ratio
 
         return Polynomial(res), current
+
+    def __rtruediv__(self, other: Iterable[float] | float) -> tuple[Polynomial, Polynomial]:
+        return Polynomial(other) / self
 
     def __pow__(self, power: int) -> Polynomial:
         """
