@@ -364,7 +364,7 @@ class Polynomial:
             return quadratic_solver(*self)
 
         if not any(self[1:-1]):
-            c, phi, res = self[-1], pi, {}
+            c, phi, res = self[-1] / self[0], pi, {}
 
             if not c:
                 return {0: n}
@@ -401,17 +401,25 @@ class Polynomial:
             A dictionary of polynomials p: n where the product of p^n for all p = self and p are simple polynomials
         """
 
-        roots = self.solve()
+        roots, c_roots = self.solve(), []
         res, remaining = {}, self.copy()
 
         for k, v in roots.items():
-            if not k.imag:
+            if k.imag:
+                c_roots.append(k)
+            else:
                 res[curr := Polynomial([1, -k])] = v
                 remaining //= curr
 
         if remaining:
-            # TODO: use complex roots
-            pass
+            res_roots = {}
+
+            for r in c_roots:
+                if r not in res_roots and r.conjugate() not in res_roots:
+                    res_roots[r] = roots[r]
+
+            for k, v in res_roots.items():
+                res[Polynomial([1, -2 * k.real, abs(k) ** 2])] = v
 
         return res
 
