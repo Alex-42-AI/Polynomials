@@ -402,16 +402,15 @@ class Polynomial:
         """
 
         roots, c_roots = self.solve(), []
-        res, remaining = {}, self.copy()
+        res = {}
 
         for k, v in roots.items():
             if k.imag:
                 c_roots.append(k)
             else:
-                res[curr := Polynomial([1, -k])] = v
-                remaining //= curr
+                res[Polynomial([1, -k])] = v
 
-        if remaining:
+        if c_roots:
             res_roots = set()
 
             for r in c_roots:
