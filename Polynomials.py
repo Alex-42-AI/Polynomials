@@ -412,14 +412,14 @@ class Polynomial:
                 remaining //= curr
 
         if remaining:
-            res_roots = {}
+            res_roots = set()
 
             for r in c_roots:
                 if r not in res_roots and r.conjugate() not in res_roots:
-                    res_roots[r] = roots[r]
+                    res_roots.add(r)
 
-            for k, v in res_roots.items():
-                res[Polynomial([1, -2 * k.real, abs(k) ** 2])] = v
+            for k in res_roots:
+                res[Polynomial([1, -2 * k.real, abs(k) ** 2])] = roots[k]
 
         return res
 
