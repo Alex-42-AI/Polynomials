@@ -69,16 +69,13 @@ def quadratic_solver(a: complex, b: complex, c: complex) -> dict[complex, int]:
         extremal, deviation = -b / 2, sqrt(abs(b ** 2 - 4 * c)) / 2
 
         if not deviation:
-            return {round_if_possible(extremal): 2}
+            return {complex(round_if_possible(extremal)): 2}
 
-        if b ** 2 < 4 * c:
-            return {round_if_possible(complex(extremal, deviation)): 1,
-                    round_if_possible(complex(extremal, -deviation)): 1}
-
-        return {round_if_possible(extremal + deviation): 1, round_if_possible(extremal - deviation): 1}
+        return {complex(round_if_possible(extremal + deviation)): 1,
+                complex(round_if_possible(extremal - deviation)): 1}
 
     try:
-        return {round_if_possible(-c / b): 1}
+        return {complex(round_if_possible(-c / b)): 1}
     except ZeroDivisionError:
         raise ZeroDivisionError('False!') if c else ValueError('Indeterminable')
 
@@ -98,9 +95,8 @@ def cubic_solver(a: float, b: float, c: float, d: float) -> complex:
         b, c, d = b / a, c / a, d / a
         p, q = b * c / 6 - d / 2 - (b / 3) ** 3, c / 3 - (b / 3) ** 2
         v = sqrt(p ** 2 + q ** 3)
-        fst, snd = cbrt(p + v), cbrt(p - v)
 
-        return round_if_possible(fst + snd - b / 3)
+        return round_if_possible(cbrt(p + v) + cbrt(p - v) - b / 3)
 
     res = quadratic_solver(b, c, d)
 
@@ -133,11 +129,11 @@ def quartic_solver(a: float, b: float, c: float, d: float, e: float) -> complex:
             return -b / 4
 
         R = sqrt(z0)
-        D, E = sqrt(2 * q / R - 2 * p - z0), sqrt(- 2 * q / R - 2 * p - z0)
 
-        return round_if_possible((D + E) / 2 - b / 4)
+        return round_if_possible((sqrt(2 * q / R - 2 * p - z0) + sqrt(- 2 * q / R - 2 * p - z0)) / 2 - b / 4)
 
     return cubic_solver(b, c, d, e)
+
 
 class Polynomial:
     def __init__(self, vals: Iterable[float]):
@@ -290,7 +286,7 @@ class Polynomial:
 
         tmp = self.integrate()
 
-        return tmp(b) - tmp(a)
+        return (tmp(b) - tmp(a)).real
 
     def limit(self, negative: bool = False) -> float:
         """
@@ -305,7 +301,7 @@ class Polynomial:
 
         return (-1) ** (1 - (self[0] > 0) + (bool(negative) and (self.degree % 2))) * inf
 
-    def show(self, var: str = "x") -> str:
+    def print(self, var: str = "x") -> str:
         """
         Args:
             var: Variable name
@@ -364,14 +360,14 @@ class Polynomial:
             return quadratic_solver(*self)
 
         if not any(self[1:-1]):
-            c, phi, res = self[-1] / self[0], pi, {}
+            c, phi, res = -self[-1] / self[0], 0, {}
 
             if not c:
                 return {0: n}
 
             if c < 0:
                 c *= -1
-                phi = -phi
+                phi = pi
 
             root_c = c ** (1 / n)
 
@@ -393,7 +389,38 @@ class Polynomial:
 
             return roots
 
-        return ...
+        der = self.differentiate()
+        x0 = 0
+
+        while True:
+            f_x = self(x0).real
+
+            if not (der_x := der(x0)):
+                if not f_x:
+                    break
+                else:
+                    if self.limit(True) == -inf and f_x > 0:
+                        x0 -= 1
+                    elif self.limit() == inf and f_x < 0:
+                        x0 += 1
+                    else:
+                        pass
+
+                continue
+
+            x0 -= f_x / der_x
+
+            if abs(self(x0)) < 1e-13:
+                break
+
+        res = (self // [1, -x0]).solve()
+
+        if x0 not in res:
+            res[x0] = 0
+
+        res[x0] += 1
+
+        return res
 
     def factorize(self) -> dict[Polynomial, int]:
         """
@@ -560,7 +587,7 @@ class Polynomial:
     def __bool__(self) -> bool:
         """
         Returns:
-           self.show() != 0
+           self.print() != 0
         """
 
         return bool(self.value)
@@ -611,7 +638,7 @@ class Polynomial:
         Args:
             other: Another polynomial
         Returns:
-            If lim(inf, self) < lim(inf, other)
+            If lim(inf, self) / lim(inf, other) = 0
         """
 
         if len(self) != len(other):
